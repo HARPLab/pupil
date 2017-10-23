@@ -8,7 +8,7 @@ Start by installing the following packages (a subset of the pupil labs packages 
 * the python packages have been removed
 * GLFW3 is not available by default on ubuntu, so built it from source
 
-`sudo apt-get install -y pkg-config git cmake build-essential nasm wget libusb-1.0-0-dev  libglew-dev libtbb-dev`
+`sudo apt-get install -y pkg-config git cmake build-essential nasm wget libusb-1.0-0-dev  libglew-dev libtbb-dev xorg-dev libglu1-mesa-dev`
 
 ### FFMPEG/etc
 ```
@@ -67,9 +67,10 @@ At this point, `python3.6` should be available from the terminal, but `python3 -
 
 2. Install `virtualenv` and `virtualenvwrapper`
 ```
+sudo apt-get install python-pip
 sudo pip install virtualenvwrapper
 ```
-Add the line `source /usr/local/bin/virtualenvwrapper.sh` to your `.bashrc` file and source it or create a new terminal. Then source it in your terminal.
+Add the line `source /usr/local/bin/virtualenvwrapper.sh` to your `.bashrc` file and source it there. Then source it in your terminal or create a new terminal.
 
 3. Create a new virtual environment for pupil-labs:
 ```
@@ -113,11 +114,69 @@ At the end of the configuration, you should see python information that looks si
 If that works, now build the package. This step might take a while.
 
 ```
-make -j2
+make
 sudo make install
 sudo ldconfig
 ```
 
 Make sure that it works.
 
+```
+python
+import cv2
+```
 
+should return no errors.
+
+
+## 3D Eye Model Dependencies
+All of these should work directly as per the pupil-labs instructions except for Boost.Python (see below).
+
+```
+sudo apt-get install libboost-dev libgoogle-glog-dev libatlas-base-dev libeigen3-dev
+
+# sudo apt-get install software-properties-common if add-apt-repository is not found
+sudo add-apt-repository ppa:bzindovic/suitesparse-bugfix-1319687
+sudo apt-get update
+sudo apt-get install libsuitesparse-dev
+
+# install ceres-solver
+git clone https://ceres-solver.googlesource.com/ceres-solver
+cd ceres-solver
+mkdir build
+cd build
+cmake .. -DBUILD_SHARED_LIBS=ON
+make
+make test
+sudo make install
+sudo sh -c 'echo "/usr/local/lib" > /etc/ld.so.conf.d/ceres.conf'
+sudo ldconfig
+```
+
+## Boost.Python
+We need to build Boost from source in order to obtain Boost.Python for python3.6.5
+
+```
+wget https://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.gz
+tar xzvf boost_1_65_1.tar.gz
+cd boost_1_65_1
+
+# IMPORTANT: Don't run this in the virtualenv, or Boost won't be able to find the python-dev headers
+deactivate 
+
+./bootstrap.sh --with-python=python3.6 --with-libraries=python
+./b2 
+sudo ./b2 install
+
+# Now link the built binary within the boost configuration
+sudo ln -s /usr/local/lib/libboost_python3.so.1.65.1 /usr/local/lib/libboost_python-py36.so
+```
+
+# Test your installation
+Pupil should now run and compile the 3D detector successfully.
+
+```
+python pupil/pupil-src/main.py
+```
+
+It should first attempt to compile additional files, and then open the pupil viewer. If it opened successfully, congratulations! You're done.
